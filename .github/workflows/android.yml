@@ -1,13 +1,13 @@
-name: Build XA Hardware Lab APK
+name: Build and Release XA Hardware Lab
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main]
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -16,11 +16,15 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: '8.9'
       - uses: android-actions/setup-android@v3
       - name: Build APK
         run: gradle --no-daemon assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: XA-Hardware-Lab-APK
-          path: app/build/outputs/apk/debug/*.apk
+      - name: Prepare APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk XA-Hardware-Lab.apk
+      - name: Publish direct APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest XA-Hardware-Lab.apk --title "XA Hardware Lab (Latest Test Build)" --notes "Experimental Android debug APK. Built from commit ${GITHUB_SHA}." --prerelease --target "${GITHUB_SHA}"
